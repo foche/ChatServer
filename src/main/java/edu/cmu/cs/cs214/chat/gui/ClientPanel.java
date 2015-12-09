@@ -1,7 +1,11 @@
 /**
- * 
+ *
  */
 package edu.cmu.cs.cs214.chat.gui;
+
+import edu.cmu.cs.cs214.chat.client.ChatClient;
+import edu.cmu.cs.cs214.chat.client.ClientChangeListener;
+import edu.cmu.cs.cs214.chat.server.Message;
 
 import java.awt.BorderLayout;
 import java.awt.FlowLayout;
@@ -19,205 +23,195 @@ import javax.swing.JTextArea;
 import javax.swing.JTextField;
 import javax.swing.SwingUtilities;
 
-import edu.cmu.cs.cs214.chat.client.ChatClient;
-import edu.cmu.cs.cs214.chat.client.ClientChangeListener;
-
 /**
  * ClientPanel a GUI for the ChatClient interface
- * 
- * @author nora
  *
+ * @author nora
  */
 public class ClientPanel extends JPanel implements ClientChangeListener {
-    private static final int FIELD_WIDTH = Integer.parseInt("60");
-    private static final int INFO_WIDTH = Integer.parseInt("20");
-    private static final int AREA_WIDTH = FIELD_WIDTH + Integer.parseInt("10");
+  private static final int FIELD_WIDTH = Integer.parseInt("60");
+  private static final int INFO_WIDTH = Integer.parseInt("20");
+  private static final int AREA_WIDTH = FIELD_WIDTH + Integer.parseInt("10");
 
-    private static final String USERNAME_TEXT = "Username: ";
-    private static final String PORT_TEXT = "Host Port: ";
-    private static final String IP_TEXT = "Host IP: ";
-    private static final String OK = "OK";
-    private static final String ERROR_ENCOUNTERED = "Error";
+  private static final String USERNAME_TEXT = "Username: ";
+  private static final String PORT_TEXT = "Host Port: ";
+  private static final String IP_TEXT = "Host IP: ";
+  private static final String OK = "OK";
+  private static final String ERROR_ENCOUNTERED = "Error";
 
-    private static final int AREA_HEIGHT = Integer.parseInt("20");
+  private static final int AREA_HEIGHT = Integer.parseInt("20");
 
-    private ChatClient client;
+  private final ChatClient client;
 
-    private final JLabel usernameLabel;
-    private final JLabel portLabel;
-    private final JLabel ipLabel;
+  private final JLabel usernameLabel;
+  private final JLabel portLabel;
+  private final JLabel ipLabel;
 
-    private final JTextField usernameField;
-    private final JTextField portField;
-    private final JTextField ipField;
-    private final JTextField messageField;
+  private final JTextField usernameField;
+  private final JTextField portField;
+  private final JTextField ipField;
+  private final JTextField messageField;
 
-    private final JScrollPane scrollPane;
-    private final JTextArea chatArea;
+  private final JScrollPane scrollPane;
+  private final JTextArea chatArea;
 
-    private final JButton startButton;
-    private final JButton sendButton;
+  private final JButton startButton;
+  private final JButton sendButton;
 
+  /**
+   * Constructor for ClientPanel takes in an instance of the ChatClient that
+   * it will be representing.
+   *
+   * @param chatClient
+   *          ChatClient the gui will be representing
+   */
+  public ClientPanel(final ChatClient chatClient) {
+    client = chatClient;
+    chatClient.addClientChangeListener(this);
 
-    /**
-     * Constructor for ClientPanel takes in an instance of the ChatClient that
-     * it will be representing.
-     * 
-     * @param chatClient
-     *            ChatClient the gui will be representing
-     */
-    public ClientPanel(ChatClient chatClient) {
-        this.client = chatClient;
-        chatClient.addClientChangeListener(this);
+    usernameLabel = new JLabel(USERNAME_TEXT);
+    portLabel = new JLabel(PORT_TEXT);
+    ipLabel = new JLabel(IP_TEXT);
 
-        usernameLabel = new JLabel(USERNAME_TEXT);
-        portLabel = new JLabel(PORT_TEXT);
-        ipLabel = new JLabel(IP_TEXT);
+    usernameField = new JTextField(FIELD_WIDTH);
+    portField = new JTextField(FIELD_WIDTH);
+    ipField = new JTextField(FIELD_WIDTH);
+    messageField = new JTextField(FIELD_WIDTH);
 
-        usernameField = new JTextField(FIELD_WIDTH);
-        portField = new JTextField(FIELD_WIDTH);
-        ipField = new JTextField(FIELD_WIDTH);
-        messageField = new JTextField(FIELD_WIDTH);
+    chatArea = new JTextArea(AREA_HEIGHT, AREA_WIDTH);
+    chatArea.setEditable(false);
+    chatArea.setLineWrap(true);
+    chatArea.setWrapStyleWord(true);
 
-        chatArea = new JTextArea(AREA_HEIGHT, AREA_WIDTH);
-        chatArea.setEditable(false);
-        chatArea.setLineWrap(true);
-        chatArea.setWrapStyleWord(true);
+    scrollPane = new JScrollPane(chatArea);
+    scrollPane.getViewport().setAutoscrolls(true);
 
-        scrollPane = new JScrollPane(chatArea);
-        this.scrollPane.getViewport().setAutoscrolls(true);
+    startButton = new JButton("Start");
+    sendButton = new JButton("Send");
 
-        startButton = new JButton("Start");
-        sendButton = new JButton("Send");
+    setLayout(new BorderLayout());
+    this.add(createStartPanel(), BorderLayout.NORTH);
+    this.add(scrollPane, BorderLayout.CENTER);
+    this.add(createSendPanel(), BorderLayout.SOUTH);
 
-        this.setLayout(new BorderLayout());
-        this.add(createStartPanel(), BorderLayout.NORTH);
-        this.add(scrollPane, BorderLayout.CENTER);
-        this.add(createSendPanel(), BorderLayout.SOUTH);
+    messageField.setEnabled(false);
+    scrollPane.setEnabled(false);
+    sendButton.setEnabled(false);
 
-        this.messageField.setEnabled(false);
-        scrollPane.setEnabled(false);
-        this.sendButton.setEnabled(false);
+    sendButton
+        .addActionListener(new SendMessageListener(messageField, client, this));
+    startButton.addActionListener(
+        new StartChatListener(usernameField, portField, ipField, client, this));
+  }
 
-        sendButton.addActionListener(new SendMessageListener(messageField,
-                client, this));
-        startButton.addActionListener(new StartChatListener(usernameField,
-                portField, ipField, client, this));
-    }
+  private JPanel createStartPanel() {
+    final JPanel panel = new JPanel();
+    panel.setLayout(new FlowLayout());
+    panel.add(createUserInfoPanel());
+    panel.add(startButton);
 
+    return panel;
+  }
 
-    private JPanel createStartPanel() {
-        JPanel panel = new JPanel();
-        panel.setLayout(new FlowLayout());
-        panel.add(createUserInfoPanel());
-        panel.add(startButton);
+  private JPanel createUserInfoPanel() {
+    final JPanel panel = new JPanel();
+    panel.setLayout(new BoxLayout(panel, BoxLayout.Y_AXIS));
 
-        return panel;
-    }
+    final JPanel namePanel = new JPanel();
+    namePanel.setLayout(new FlowLayout());
+    namePanel.add(usernameLabel);
+    namePanel.add(usernameField);
+    panel.add(namePanel);
 
+    final JPanel ipPanel = new JPanel();
+    ipPanel.setLayout(new FlowLayout());
+    ipPanel.add(ipLabel);
+    ipPanel.add(ipField);
+    panel.add(ipPanel);
 
-    private JPanel createUserInfoPanel() {
-        JPanel panel = new JPanel();
-        panel.setLayout(new BoxLayout(panel, BoxLayout.Y_AXIS));
+    final JPanel portPanel = new JPanel();
+    portPanel.setLayout(new FlowLayout());
+    portPanel.add(portLabel);
+    portPanel.add(portField);
+    panel.add(portPanel);
 
-        JPanel namePanel = new JPanel();
-        namePanel.setLayout(new FlowLayout());
-        namePanel.add(this.usernameLabel);
-        namePanel.add(this.usernameField);
-        panel.add(namePanel);
+    return panel;
+  }
 
-        JPanel ipPanel = new JPanel();
-        ipPanel.setLayout(new FlowLayout());
-        ipPanel.add(this.ipLabel);
-        ipPanel.add(this.ipField);
-        panel.add(ipPanel);
+  private JPanel createSendPanel() {
+    final JPanel panel = new JPanel();
+    panel.setLayout(new BorderLayout());
+    panel.add(messageField, BorderLayout.CENTER);
+    panel.add(sendButton, BorderLayout.EAST);
+    messageField.addKeyListener(new KeyListener() {
 
-        JPanel portPanel = new JPanel();
-        portPanel.setLayout(new FlowLayout());
-        portPanel.add(this.portLabel);
-        portPanel.add(this.portField);
-        panel.add(portPanel);
+      @Override
+      public void keyTyped(final KeyEvent e) {
+        // Ignore
+      }
 
-        return panel;
-    }
+      @Override
+      public void keyReleased(final KeyEvent e) {
+        // Ignore
+      }
 
+      @Override
+      public void keyPressed(final KeyEvent e) {
+        if (e.getKeyCode() == KeyEvent.VK_ENTER) {
+          sendButton.doClick();
+        }
+      }
+    });
+    return panel;
+  }
 
-    private JPanel createSendPanel() {
-        JPanel panel = new JPanel();
-        panel.setLayout(new BorderLayout());
-        panel.add(this.messageField, BorderLayout.CENTER);
-        panel.add(this.sendButton, BorderLayout.EAST);
-        messageField.addKeyListener(new KeyListener() {
+  /*
+   * (non-Javadoc)
+   *
+   * @see
+   * edu.cmu.cs.cs214.rec15.gui.ClientChangeListener#startChat(java.lang.String
+   * , java.lang.String, java.lang.String)
+   */
+  @Override
+  public void startChat(final String username, final String port,
+      final String ip) {
+    messageField.setEnabled(true);
+    scrollPane.setEnabled(true);
+    sendButton.setEnabled(true);
+    messageField.requestFocus();
+  }
 
-            @Override
-            public void keyTyped(KeyEvent e) {
-                // Ignore
-            }
+  @Override
+  public void messageReceived(final Message msg) {
 
+    // TODO: Make the server show the timestamp of the received message.
+    // Probably should use DateFormat (SimpleDateFormat) to format the date.
+    // Date#getMinute, Date#getHour etc are deprecated in favor of this
+    // method
 
-            @Override
-            public void keyReleased(KeyEvent e) {
-                // Ignore
-            }
+    final String newText =
+        String.format(" %s: %s%n", msg.getSender(), msg.getContent());
+    chatArea.append(newText);
+    chatArea.setCaretPosition(chatArea.getDocument().getLength());
+  }
 
+  /**
+   * Displays a pop-up error message
+   *
+   * @param message
+   *          text of message to be displayed
+   */
+  @Override
+  public void displayErrorMessage(final String message) {
+    final JFrame frame = (JFrame) SwingUtilities.getRoot(this);
 
-            @Override
-            public void keyPressed(KeyEvent e) {
-                if (e.getKeyCode() == KeyEvent.VK_ENTER) {
-                    sendButton.doClick();
-                }
-            }
-        });
-        return panel;
-    }
+    final Object[] options = {
+        OK
+    };
 
-
-    /*
-     * (non-Javadoc)
-     * 
-     * @see
-     * edu.cmu.cs.cs214.rec15.gui.ClientChangeListener#startChat(java.lang.String
-     * , java.lang.String, java.lang.String)
-     */
-    @Override
-    public void startChat(String username, String port, String ip) {
-        this.messageField.setEnabled(true);
-        this.scrollPane.setEnabled(true);
-        this.sendButton.setEnabled(true);
-        this.messageField.requestFocus();
-    }
-
-
-    /*
-     * (non-Javadoc)
-     * 
-     * @see
-     * edu.cmu.cs.cs214.rec15.gui.ClientChangeListener#messageReceived(java.
-     * lang.String)
-     */
-    @Override
-    public void messageReceived(String username, String message) {
-        String newText = String.format(" %s: %s%n", username, message);
-        this.chatArea.append(newText);
-        chatArea.setCaretPosition(chatArea.getDocument().getLength());
-    }
-
-
-    /**
-     * Displays a pop-up error message
-     * 
-     * @param message
-     *            text of message to be displayed
-     */
-    @Override
-    public void displayErrorMessage(String message) {
-        JFrame frame = (JFrame) SwingUtilities.getRoot(this);
-
-        Object[] options = { OK };
-
-        JOptionPane.showOptionDialog(frame, message, ERROR_ENCOUNTERED,
-                JOptionPane.YES_OPTION, JOptionPane.INFORMATION_MESSAGE, null,
-                options, options[0]);
-    }
+    JOptionPane.showOptionDialog(frame, message, ERROR_ENCOUNTERED,
+        JOptionPane.YES_OPTION, JOptionPane.INFORMATION_MESSAGE, null, options,
+        options[0]);
+  }
 
 }
