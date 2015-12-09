@@ -9,6 +9,7 @@ import java.net.ServerSocket;
 import java.net.Socket;
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.Date;
 import java.util.List;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
@@ -32,7 +33,7 @@ public class ChatServerImpl extends Thread implements ChatServer {
 
   /**
    * Constructs a ChatServerImpl on the given port
-   * 
+   *
    * @param serverPort
    *          Port to run the server on
    */
@@ -116,7 +117,7 @@ public class ChatServerImpl extends Thread implements ChatServer {
 
   /**
    * Handler for every client connection to the server.
-   * 
+   *
    * @author tsun
    */
   private static class ClientHandler implements Runnable {
@@ -153,7 +154,7 @@ public class ChatServerImpl extends Thread implements ChatServer {
     /**
      * Callback for when a message is received by the server. Notifies all
      * clients about the new message received
-     * 
+     *
      * @param from
      *          Socket where the new message originated
      * @param msg
@@ -171,6 +172,7 @@ public class ChatServerImpl extends Thread implements ChatServer {
           try {
             final ObjectOutputStream out =
                 new ObjectOutputStream(s.getOutputStream());
+            msg.setServerTimestamp(new Date());
             out.writeObject(msg);
           } catch (final IOException e) {
             Log.e(TAG, "Unable to send message to client.");
@@ -178,12 +180,40 @@ public class ChatServerImpl extends Thread implements ChatServer {
         }
       }
     }
+  }
 
+  /**
+   * Callback for when a message is received by the server. Notifies all
+   * clients about the new message received
+   *
+   * @param from
+   *          Socket where the new message originated
+   * @param msg
+   *          Message sent by the client
+   */
+  private void onNewMessage(final Socket from, final Message msg) {
+    // TODO: Add the server timestamp to the message received. Note:
+    // Message#setServerTimestamp was created for you in the Message
+    // class.
+
+    // Synchronize because we are iterating through all clients in a
+    // thread
+    synchronized (clients) {
+      for (final Socket s : clients) {
+        try {
+          final ObjectOutputStream out =
+              new ObjectOutputStream(s.getOutputStream());
+          out.writeObject(msg);
+        } catch (final IOException e) {
+          Log.e(TAG, "Unable to send message to client.");
+        }
+      }
+    }
   }
 
   /**
    * Runs the chat master server.
-   * 
+   *
    * @param args
    *          Command line arguments
    */
